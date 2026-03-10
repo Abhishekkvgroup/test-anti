@@ -8,7 +8,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
  * 1. Replace the API_KEY with your NEWly generated key from Google AI Studio.
  * 2. Place all your .docx files in the same folder as this script.
  */
-const API_KEY = "PASTE_YOUR_NEW_API_KEY_HERE"; 
+const API_KEY = "AIzaSyBOLMVh3QCTn-bBRgi_zZBJ2oZD78VRo2Y";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 /**
@@ -21,7 +21,7 @@ async function convertFile(docxFile) {
         const outputFileName = `${fileName}.html`;
 
         console.log(`\n📖 Reading: ${docxFile}...`);
-        
+
         // 1. Extract raw text from DOCX
         const { value: text } = await mammoth.extractRawText({ path: docxPath });
 
@@ -34,21 +34,24 @@ async function convertFile(docxFile) {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
-            Task: Convert this Word Document content into very clean HTML.
+            Task: Convert this Word Document content into very clean, SEO-optimized HTML.
             
             Strict Rules:
-            1. All main headings must be wrapped in <h3> tags.
-            2. All paragraphs must be wrapped in <p> tags.
-            3. All lists must use <ul> and <li> tags.
-            4. Do NOT include markdown code blocks (no \`\`\`html at start or end).
-            5. Output ONLY the raw HTML tags ready for a website.
+            1. GENERATE SEO META: Provide a <title> and a <meta name="description"> tag at the very top based on the content.
+            2. MAIN TITLE: Wrap the main topic as an <h1> at the very top.
+            3. SUB-HEADINGS: All sub-headings must be <h3> tags.
+            4. PARAGRAPHS: Wrap all text in <p> tags.
+            5. LISTS: All lists must use <ul> and <li> tags.
+            6. NO CLASSES: Do NOT add any "class" or "id" attributes to the HTML tags.
+            7. CLEANUP: Do NOT include markdown code blocks (no \`\`\`html).
+            8. Output ONLY the raw HTML tags.
             
             Content:
             ${text}
         `;
 
-        console.log(`🤖 AI is converting ${docxFile} to HTML structure...`);
-        
+        console.log(`🤖 AI is generating SEO-ready HTML for ${docxFile}...`);
+
         // 3. Generate content
         const result = await model.generateContent(prompt);
         let htmlContent = result.response.text();
@@ -58,7 +61,7 @@ async function convertFile(docxFile) {
 
         // 5. Save the result
         fs.writeFileSync(path.join(__dirname, outputFileName), htmlContent);
-        console.log(`✅ SUCCESS: Created ${outputFileName}`);
+        console.log(`✅ SUCCESS: Created ${outputFileName} (with SEO Meta Tags)`);
 
     } catch (error) {
         if (error.message.includes('403')) {
@@ -93,7 +96,7 @@ async function runBatch() {
         for (let i = 0; i < docxFiles.length; i++) {
             const file = docxFiles[i];
             console.log(`\n[File ${i + 1}/${docxFiles.length}]`);
-            
+
             await convertFile(file);
 
             // Respect Rate Limits (Wait 4 seconds between files for FREE tier)
