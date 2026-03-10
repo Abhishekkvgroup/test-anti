@@ -40,13 +40,79 @@ async function runAgent(docxFileName) {
         const outputName = `${baseName}_converted.html`;
         fs.writeFileSync(path.join(__dirname, outputName), htmlOutput);
 
-        console.log("\n✅ Conversion Complete!");
-        console.log(`📂 Result saved to: html-agent/${outputName}`);
+        console.log("✅ Conversion Complete!");
+        console.log(`📂 Result saved to: html-agent/${outputName}\n`);
 
     } catch (error) {
-        console.error("\n❌ Error:", error.message);
+        console.error("\n❌ Error processing document:", error.message);
     }
 }
 
-const inputFile = process.argv[2] || 'test_file.docx';
-runAgent(inputFile);
+async function processMultipleFiles(directoryPath) {
+    try {
+        const fullDirPath = path.isAbsolute(directoryPath) ? directoryPath : path.join(__dirname, directoryPath);
+        
+        if (!fs.existsSync(fullDirPath)) {
+             console.error(`❌ Error: Directory not found at ${fullDirPath}`);
+             return;
+        }
+
+        console.log(`\n🔍 Scanning directory for DOCX files: ${fullDirPath}`);
+        
+        // Read all files in the directory
+        const files = fs.readdirSync(fullDirPath);
+        
+        // Filter only files ending with .docx
+        const docxFiles = files.filter(file => file.endsWith('.docx') && !file.startsWith('~$'));
+        
+        if (docxFiles.length === 0) {
+            console.log("⚠️ No .docx files found in the directory.");
+            return;
+        }
+        
+        console.log(`📑 Found ${docxFiles.length} Word document(s). Starting batch conversion...`);
+
+        // Loop through each file and run the agent
+        for (let i = 0; i < docxFiles.length; i++) {
+            const file = docxFiles[i];
+            console.log(`\n--- Processing File ${i + 1} of ${docxFiles.length} ---`);
+            await runAgent(path.join(fullDirPath, file));
+            
+            // Adding a small delay to avoid hitting the free API rate limit (15 requests per minute)
+            if (i < docxFiles.length - 1) {
+                console.log("⏳ Pausing for 4 seconds to respect API limits...");
+                await new Promise(resolve => setTimeout(resolve, 4000));
+            }
+        }
+        
+        console.log("\n🎉 All files processed successfully!");
+
+    } catch (error) {
+        console.error("\n❌ Directory processing error:", error.message);
+    }
+}
+
+// Get input from command line: can be a file or a folder path
+const inputPath = process.argv[2] || '.'; // Default to current folder (.)
+
+// Check if the input is a directory or a specific file
+const fullInputPath = path.isAbsolute(inputPath) ? inputPath : path.join(__dirname, inputPath);
+
+try {
+    const stats = fs.statSync(fullInputPath);
+    if (stats.isDirectory()) {
+        // It's a folder, run the batch process
+        processMultipleFiles(inputPath);
+    } else if (stats.isFile() && inputPath.endsWith('.docx')) {
+        // It's a single file, run just that one
+        runAgent(inputPath);
+    } else {
+        console.error("❌ Please provide a valid .docx file or a folder path.");
+    }
+} catch(err) {
+    if (inputPath !== '.') {
+         console.error(`❌ Error: Could not find path ${inputPath}`);
+    } else {
+         console.error("❌ Error reading current directory.");
+    }
+}
